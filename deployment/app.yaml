@@ -1,0 +1,12 @@
+runtime: python311
+service: proofpoint-tap-simulator
+
+env_variables:
+  AUTH_USERNAME: "test-principal"
+  AUTH_PASSWORD: "test-secret"
+  DEBUG: "False"
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+  target_cpu_utilization: 0.65
