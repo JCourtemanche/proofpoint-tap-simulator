@@ -1,0 +1,13 @@
+steps:
+  # Build the container image from deployment/Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/proofpoint-tap-simulator'
+      - '-f'
+      - 'deployment/Dockerfile'
+      - '.'
+
+images:
+  - 'gcr.io/$PROJECT_ID/proofpoint-tap-simulator'

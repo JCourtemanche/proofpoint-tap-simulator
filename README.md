@@ -127,19 +127,22 @@ cd deployment
 gcloud app deploy app.yaml
 ```
 
-**Cloud Run (pour plus de flexibilité) :**
+**Cloud Run (recommandé - plus simple) :**
 
 ```bash
-# 1. Activer les APIs
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com
+# Utiliser le script automatisé
+cd ~/proofpoint-tap-simulator
+bash deploy-cloudrun.sh
 
-# 2. Construire et déployer
-gcloud builds submit --tag gcr.io/PROJECT-ID/proofpoint-tap-simulator
+# OU manuellement:
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com
+gcloud builds submit --config cloudbuild.yaml
 gcloud run deploy proofpoint-tap-simulator \
   --image gcr.io/PROJECT-ID/proofpoint-tap-simulator \
   --platform managed \
   --region europe-west1 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --set-env-vars AUTH_USERNAME=test-principal,AUTH_PASSWORD=test-secret
 ```
 
 > ⚠️ **Important** : N'oubliez pas de changer les credentials par défaut dans la configuration !

@@ -319,12 +319,11 @@ gcloud artifacts repositories create proofpoint-simulator \
 # Se placer à la racine du projet
 cd ~/proofpoint-tap-simulator
 
-# Construire l'image avec Cloud Build (GCR - Container Registry)
-gcloud builds submit \
-  --tag gcr.io/${PROJECT_ID}/proofpoint-tap-simulator \
-  --dockerfile deployment/Dockerfile \
-  .
+# Construire l'image avec Cloud Build (utilise cloudbuild.yaml)
+gcloud builds submit --config cloudbuild.yaml
 ```
+
+Le fichier `cloudbuild.yaml` à la racine du projet spécifie comment construire l'image avec le Dockerfile situé dans `deployment/`.
 
 > 💡 **Note :** On utilise GCR (gcr.io) qui est plus simple que Artifact Registry pour ce cas d'usage.
 

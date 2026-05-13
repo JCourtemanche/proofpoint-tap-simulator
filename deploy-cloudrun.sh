@@ -40,9 +40,8 @@ echo -e "${GREEN}✓ Dockerfile trouvé${NC}\n"
 echo -e "${YELLOW}[3/4] Construction de l'image Docker...${NC}"
 echo "Cela peut prendre 2-3 minutes..."
 gcloud builds submit \
-  --tag gcr.io/$PROJECT_ID/$SERVICE_NAME \
-  --dockerfile deployment/Dockerfile \
-  .
+  --config cloudbuild.yaml \
+  --substitutions=_PROJECT_ID=$PROJECT_ID
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}ERREUR: La construction de l'image a échoué${NC}"
