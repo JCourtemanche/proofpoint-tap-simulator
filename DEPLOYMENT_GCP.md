@@ -295,7 +295,13 @@ gcloud services enable artifactregistry.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
 ```
 
-### Étape 2 : Créer un repository Artifact Registry
+### Étape 2 : (Optionnel) Créer un repository Artifact Registry
+
+**Option A : Utiliser GCR (Container Registry) - Plus simple**
+
+Aucune configuration nécessaire, GCR est activé automatiquement.
+
+**Option B : Utiliser Artifact Registry - Plus moderne**
 
 ```bash
 # Créer le repository pour les images Docker
@@ -305,18 +311,22 @@ gcloud artifacts repositories create proofpoint-simulator \
   --description="Proofpoint TAP Simulator Docker images"
 ```
 
+> 💡 **Recommandation :** Utilisez GCR (gcr.io) pour la simplicité. Artifact Registry est plus moderne mais requiert plus de configuration.
+
 ### Étape 3 : Construire l'image Docker
 
 ```bash
 # Se placer à la racine du projet
-cd /path/to/proofpoint-tap-simulator
+cd ~/proofpoint-tap-simulator
 
-# Construire et pousser l'image avec Cloud Build
+# Construire l'image avec Cloud Build (GCR - Container Registry)
 gcloud builds submit \
-  --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/proofpoint-simulator/tap-simulator:latest \
-  --file deployment/Dockerfile \
+  --tag gcr.io/${PROJECT_ID}/proofpoint-tap-simulator \
+  --dockerfile deployment/Dockerfile \
   .
 ```
+
+> 💡 **Note :** On utilise GCR (gcr.io) qui est plus simple que Artifact Registry pour ce cas d'usage.
 
 ### Étape 4 : Configurer les secrets (recommandé)
 
@@ -328,11 +338,26 @@ echo -n "votre-mot-de-passe" | gcloud secrets create tap-password --data-file=-
 
 ### Étape 5 : Déployer sur Cloud Run
 
-**Avec secrets (recommandé) :**
+**Méthode simple : Script automatisé (Recommandé)**
+
+```bash
+# Récupérer le script depuis GitHub
+cd ~/proofpoint-tap-simulator
+git pull origin main
+
+# Exécuter le script de déploiement
+bash deploy-cloudrun.sh
+```
+
+Le script fait tout automatiquement : activation des APIs, build de l'image, déploiement, et affichage de l'URL.
+
+**Méthode manuelle :**
+
+**Avec secrets (recommandé pour production) :**
 
 ```bash
 gcloud run deploy proofpoint-tap-simulator \
-  --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/proofpoint-simulator/tap-simulator:latest \
+  --image gcr.io/${PROJECT_ID}/proofpoint-tap-simulator \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
@@ -345,11 +370,11 @@ gcloud run deploy proofpoint-tap-simulator \
   --set-env-vars DEBUG=False
 ```
 
-**Avec variables d'environnement (moins sécurisé) :**
+**Avec variables d'environnement (plus simple pour tester) :**
 
 ```bash
 gcloud run deploy proofpoint-tap-simulator \
-  --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/proofpoint-simulator/tap-simulator:latest \
+  --image gcr.io/${PROJECT_ID}/proofpoint-tap-simulator \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
@@ -358,7 +383,7 @@ gcloud run deploy proofpoint-tap-simulator \
   --timeout 300 \
   --min-instances 0 \
   --max-instances 2 \
-  --set-env-vars AUTH_USERNAME=votre-username,AUTH_PASSWORD=votre-password,DEBUG=False
+  --set-env-vars AUTH_USERNAME=test-principal,AUTH_PASSWORD=test-secret,DEBUG=False
 ```
 
 ### Étape 6 : Obtenir l'URL du service
