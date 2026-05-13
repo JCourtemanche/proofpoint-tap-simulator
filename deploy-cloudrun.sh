@@ -88,6 +88,24 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 5b. Autoriser l'accès public (si la policy d'organisation le permet)
+echo -e "${YELLOW}[6/6] Configuration de l'accès public...${NC}"
+gcloud run services add-iam-policy-binding $SERVICE_NAME \
+  --region=$REGION \
+  --member=allUsers \
+  --role=roles/run.invoker \
+  --project=$PROJECT_ID \
+  --quiet 2>/dev/null
+
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ Accès public activé${NC}\n"
+  PUBLIC_ACCESS=true
+else
+  echo -e "${YELLOW}⚠ L'accès public a été bloqué par une policy d'organisation${NC}"
+  echo -e "${YELLOW}  Le service nécessite une authentification GCP en plus de Basic Auth${NC}\n"
+  PUBLIC_ACCESS=false
+fi
+
 # 6. Récupérer l'URL du service
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
   --region $REGION \
@@ -103,13 +121,33 @@ echo -e "${GREEN}$SERVICE_URL${NC}"
 echo ""
 echo -e "${YELLOW}Tests de validation:${NC}"
 echo ""
-echo "1. Health check:"
-echo -e "   ${GREEN}curl $SERVICE_URL/health${NC}"
-echo ""
-echo "2. Test avec authentification:"
-echo -e "   ${GREEN}curl -u test-principal:test-secret \\${NC}"
-echo -e "     ${GREEN}\"$SERVICE_URL/v2/siem/all?format=json&sinceSeconds=3600\"${NC}"
-echo ""
+
+if [ "$PUBLIC_ACCESS" = true ]; then
+  echo "1. Health check:"
+  echo -e "   ${GREEN}curl $SERVICE_URL/health${NC}"
+  echo ""
+  echo "2. Test avec authentification:"
+  echo -e "   ${GREEN}curl -u test-principal:test-secret \\${NC}"
+  echo -e "     ${GREEN}\"$SERVICE_URL/v2/siem/all?format=json&sinceSeconds=3600\"${NC}"
+  echo ""
+else
+  echo "⚠ Accès public désactivé par policy d'organisation"
+  echo ""
+  echo "Pour permettre l'accès depuis XSIAM, demandez à votre admin GCP de:"
+  echo "1. Modifier la policy d'organisation pour autoriser 'allUsers', OU"
+  echo "2. Créer un service account XSIAM et l'autoriser avec:"
+  echo -e "   ${GREEN}gcloud run services add-iam-policy-binding $SERVICE_NAME \\${NC}"
+  echo -e "   ${GREEN}  --region=$REGION \\${NC}"
+  echo -e "   ${GREEN}  --member='serviceAccount:XSIAM_SA@PROJECT.iam.gserviceaccount.com' \\${NC}"
+  echo -e "   ${GREEN}  --role='roles/run.invoker' \\${NC}"
+  echo -e "   ${GREEN}  --project=$PROJECT_ID${NC}"
+  echo ""
+  echo "Pour tester avec votre compte GCP:"
+  echo -e "   ${GREEN}curl -H \"Authorization: Bearer \$(gcloud auth print-identity-token)\" \\${NC}"
+  echo -e "   ${GREEN}  -u test-principal:test-secret \\${NC}"
+  echo -e "   ${GREEN}  \"$SERVICE_URL/v2/siem/all?format=json&sinceSeconds=3600\"${NC}"
+  echo ""
+fi
 echo -e "${YELLOW}Configuration XSIAM:${NC}"
 echo "   Server URL: $SERVICE_URL"
 echo "   Service Principal: test-principal"

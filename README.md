@@ -133,16 +133,36 @@ gcloud app deploy app.yaml
 # Utiliser le script automatisé
 cd ~/proofpoint-tap-simulator
 bash deploy-cloudrun.sh
+```
 
-# OU manuellement:
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com
-gcloud builds submit --config cloudbuild.yaml
-gcloud run deploy proofpoint-tap-simulator \
-  --image gcr.io/PROJECT-ID/proofpoint-tap-simulator \
-  --platform managed \
-  --region europe-west1 \
-  --allow-unauthenticated \
-  --set-env-vars AUTH_USERNAME=test-principal,AUTH_PASSWORD=test-secret
+Le script gère automatiquement:
+- Activation des APIs (Cloud Run, Cloud Build, Artifact Registry)
+- Création du repository Artifact Registry
+- Construction et push de l'image Docker
+- Déploiement sur Cloud Run
+- Configuration de l'accès public (si autorisé par votre organisation)
+
+**Si votre organisation bloque l'accès public (`allUsers`):**
+
+Le script détectera automatiquement la restriction et affichera les instructions pour autoriser l'accès depuis XSIAM. Vous aurez besoin de:
+
+1. **Option A** - Demander à votre admin GCP de modifier la policy d'organisation pour autoriser `allUsers`
+
+2. **Option B** - Créer un service account pour XSIAM et l'autoriser:
+```bash
+# Créer le service account
+gcloud iam service-accounts create xsiam-proofpoint-tap \
+  --display-name="XSIAM Proofpoint TAP Access"
+
+# Autoriser le service account à invoquer le service
+gcloud run services add-iam-policy-binding proofpoint-tap-simulator \
+  --region=europe-west1 \
+  --member='serviceAccount:xsiam-proofpoint-tap@PROJECT-ID.iam.gserviceaccount.com' \
+  --role='roles/run.invoker'
+
+# Créer et télécharger la clé
+gcloud iam service-accounts keys create xsiam-key.json \
+  --iam-account=xsiam-proofpoint-tap@PROJECT-ID.iam.gserviceaccount.com
 ```
 
 > ⚠️ **Important** : N'oubliez pas de changer les credentials par défaut dans la configuration !
