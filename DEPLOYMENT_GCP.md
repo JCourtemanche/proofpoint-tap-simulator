@@ -637,35 +637,93 @@ access to the bucket
 
 **Solution :**
 
-Cette erreur signifie que Cloud Build n'a pas les permissions nécessaires. Exécutez :
+Cette erreur signifie que le bucket de staging n'existe pas ou que les service accounts n'ont pas les permissions nécessaires. Le bucket de staging est automatiquement créé par App Engine mais les permissions peuvent manquer.
+
+**Solution complète (copier-coller dans Cloud Shell) :**
 
 ```bash
-# 1. Activer l'API Cloud Build
-gcloud services enable cloudbuild.googleapis.com
+# === Script de résolution du problème de bucket App Engine ===
 
-# 2. Récupérer le numéro du projet
+# 1. Récupérer les informations du projet
 PROJECT_ID=$(gcloud config get-value project)
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+BUCKET_NAME="staging.${PROJECT_ID}.appspot.com"
 
-# 3. Donner les permissions au service account Cloud Build
+echo "Project ID: $PROJECT_ID"
+echo "Bucket de staging: $BUCKET_NAME"
+
+# 2. Activer les APIs nécessaires
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable storage.googleapis.com
+
+# 3. Vérifier/Créer le bucket de staging
+if gsutil ls -b gs://$BUCKET_NAME 2>/dev/null; then
+    echo "✓ Le bucket existe déjà"
+else
+    echo "Création du bucket de staging..."
+    REGION=$(gcloud app describe --format="value(locationId)")
+    gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION gs://$BUCKET_NAME
+    echo "✓ Bucket créé"
+fi
+
+# 4. Donner les permissions sur le bucket spécifique
+echo "Configuration des permissions du bucket..."
+gsutil iam ch \
+  serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com:objectAdmin \
+  gs://$BUCKET_NAME
+
+gsutil iam ch \
+  serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com:admin \
+  gs://$BUCKET_NAME
+
+# 5. Donner les permissions IAM au niveau projet
+echo "Configuration des permissions IAM..."
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-  --role="roles/storage.admin"
+  --role="roles/storage.admin" \
+  --quiet
 
-# 4. Donner les permissions au service account App Engine
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
-  --role="roles/storage.objectViewer"
+  --role="roles/storage.admin" \
+  --quiet
 
-# 5. Attendre 30 secondes que les permissions se propagent
+# 6. Attendre la propagation des permissions
+echo "Attente de 30 secondes pour la propagation des permissions..."
 sleep 30
 
-# 6. Relancer le déploiement
-cd deployment
+# 7. Relancer le déploiement
+echo "✓ Configuration terminée. Lancement du déploiement..."
+cd ~/proofpoint-tap-simulator/deployment
 gcloud app deploy app.yaml --quiet
 ```
 
-**Explication :** App Engine utilise Cloud Build pour construire votre application. Cloud Build a besoin d'accéder à un bucket de staging (créé automatiquement) pour stocker les fichiers de build.
+**Explication détaillée :**
+
+1. **Bucket de staging** : App Engine utilise un bucket nommé `staging.PROJECT_ID.appspot.com` pour stocker les fichiers temporaires pendant le build
+2. **Permissions bucket** : Les service accounts ont besoin d'accès direct au bucket (objectAdmin pour App Engine, admin pour Cloud Build)
+3. **Permissions IAM** : Les service accounts ont aussi besoin de `roles/storage.admin` au niveau projet
+4. **Propagation** : Les permissions IAM peuvent prendre jusqu'à 60 secondes pour se propager dans GCP
+
+**Alternative : Utiliser Cloud Run**
+
+Si App Engine continue à poser problème, Cloud Run est une alternative plus simple :
+
+```bash
+# Cloud Run ne nécessite pas de bucket de staging
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com
+
+# Construire et déployer directement
+cd ~/proofpoint-tap-simulator
+gcloud builds submit --tag gcr.io/$PROJECT_ID/proofpoint-tap-simulator
+
+gcloud run deploy proofpoint-tap-simulator \
+  --image gcr.io/$PROJECT_ID/proofpoint-tap-simulator \
+  --platform managed \
+  --region europe-west1 \
+  --allow-unauthenticated \
+  --set-env-vars AUTH_USERNAME=test-principal,AUTH_PASSWORD=test-secret
+```
 
 ### Problème : Authentification échoue (401)
 
