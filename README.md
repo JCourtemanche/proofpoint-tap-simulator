@@ -99,41 +99,50 @@ curl -u test-principal:test-secret \
 
 ## Déploiement sur Google Cloud Platform
 
-### Avec Google App Engine
+📖 **[Guide complet de déploiement GCP →](DEPLOYMENT_GCP.md)**
+
+Pour un guide détaillé étape par étape avec :
+- Configuration complète du projet GCP
+- Gestion des credentials sécurisée
+- Déploiement App Engine et Cloud Run
+- Monitoring et dépannage
+- Estimation des coûts
+
+Consultez le **[DEPLOYMENT_GCP.md](DEPLOYMENT_GCP.md)** pour les instructions complètes.
+
+### Déploiement rapide
+
+**App Engine (recommandé pour débuter) :**
 
 ```bash
-# Se placer dans le répertoire deployment
-cd deployment
+# Prérequis : gcloud CLI installé et configuré
+# 1. Créer et configurer le projet
+gcloud projects create votre-project-id
+gcloud config set project votre-project-id
+gcloud app create --region=europe-west1
 
-# Déployer
+# 2. Modifier les credentials dans deployment/app.yaml
+# 3. Déployer
+cd deployment
 gcloud app deploy app.yaml
 ```
 
-### Avec Docker et Cloud Run
+**Cloud Run (pour plus de flexibilité) :**
 
 ```bash
-# Construire l'image Docker
-docker build -f deployment/Dockerfile -t proofpoint-tap-simulator .
+# 1. Activer les APIs
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com
 
-# Tester localement
-docker run -p 8080:8080 \
-  -e AUTH_USERNAME=test-principal \
-  -e AUTH_PASSWORD=test-secret \
-  proofpoint-tap-simulator
-
-# Tag pour GCR
-docker tag proofpoint-tap-simulator gcr.io/[PROJECT-ID]/proofpoint-tap-simulator
-
-# Push vers GCR
-docker push gcr.io/[PROJECT-ID]/proofpoint-tap-simulator
-
-# Déployer sur Cloud Run
+# 2. Construire et déployer
+gcloud builds submit --tag gcr.io/PROJECT-ID/proofpoint-tap-simulator
 gcloud run deploy proofpoint-tap-simulator \
-  --image gcr.io/[PROJECT-ID]/proofpoint-tap-simulator \
+  --image gcr.io/PROJECT-ID/proofpoint-tap-simulator \
   --platform managed \
-  --region us-central1 \
+  --region europe-west1 \
   --allow-unauthenticated
 ```
+
+> ⚠️ **Important** : N'oubliez pas de changer les credentials par défaut dans la configuration !
 
 ## Structure du projet
 
