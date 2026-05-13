@@ -21,24 +21,35 @@ echo -e "${YELLOW}Service:${NC} $SERVICE_NAME"
 echo ""
 
 # 1. Activer les APIs nécessaires et configurer les permissions
-echo -e "${YELLOW}[1/5] Activation des APIs...${NC}"
+echo -e "${YELLOW}[1/6] Activation des APIs...${NC}"
 gcloud services enable run.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 gcloud services enable storage.googleapis.com
 echo -e "${GREEN}✓ APIs activées${NC}\n"
 
-# 1b. Configurer les permissions pour GCR
-echo -e "${YELLOW}[2/5] Configuration des permissions GCR...${NC}"
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-  --role="roles/storage.admin" \
-  --quiet > /dev/null 2>&1
-echo -e "${GREEN}✓ Permissions configurées${NC}\n"
+# 1b. Créer le repository Artifact Registry
+echo -e "${YELLOW}[2/6] Configuration d'Artifact Registry...${NC}"
+REPO_EXISTS=$(gcloud artifacts repositories list \
+  --location=$REGION \
+  --filter="name:proofpoint-simulator" \
+  --format="value(name)" 2>/dev/null)
+
+if [ -z "$REPO_EXISTS" ]; then
+  echo "Création du repository Artifact Registry..."
+  gcloud artifacts repositories create proofpoint-simulator \
+    --repository-format=docker \
+    --location=$REGION \
+    --description="Proofpoint TAP Simulator images" \
+    --quiet
+  echo -e "${GREEN}✓ Repository créé${NC}"
+else
+  echo -e "${GREEN}✓ Repository existe déjà${NC}"
+fi
+echo ""
 
 # 2. Se placer dans le bon répertoire
-echo -e "${YELLOW}[3/5] Vérification du répertoire...${NC}"
+echo -e "${YELLOW}[3/6] Vérification du répertoire...${NC}"
 if [ ! -f "deployment/Dockerfile" ]; then
     echo -e "${RED}ERREUR: Dockerfile non trouvé${NC}"
     echo "Assurez-vous d'être dans le répertoire proofpoint-tap-simulator"
@@ -47,7 +58,7 @@ fi
 echo -e "${GREEN}✓ Dockerfile trouvé${NC}\n"
 
 # 3. Construire l'image Docker
-echo -e "${YELLOW}[4/5] Construction de l'image Docker...${NC}"
+echo -e "${YELLOW}[4/6] Construction de l'image Docker...${NC}"
 echo "Cela peut prendre 2-3 minutes..."
 gcloud builds submit --config cloudbuild.yaml
 
@@ -55,12 +66,13 @@ if [ $? -ne 0 ]; then
     echo -e "${RED}ERREUR: La construction de l'image a échoué${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Image construite: gcr.io/$PROJECT_ID/$SERVICE_NAME${NC}\n"
+IMAGE_PATH="${REGION}-docker.pkg.dev/$PROJECT_ID/proofpoint-simulator/tap-simulator:latest"
+echo -e "${GREEN}✓ Image construite: $IMAGE_PATH${NC}\n"
 
 # 4. Déployer sur Cloud Run
-echo -e "${YELLOW}[5/5] Déploiement sur Cloud Run...${NC}"
+echo -e "${YELLOW}[5/6] Déploiement sur Cloud Run...${NC}"
 gcloud run deploy $SERVICE_NAME \
-  --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
+  --image $IMAGE_PATH \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
@@ -76,7 +88,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 5. Récupérer l'URL du service
+# 6. Récupérer l'URL du service
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
   --region $REGION \
   --format 'value(status.url)')
