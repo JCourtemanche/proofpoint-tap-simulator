@@ -139,11 +139,17 @@ gcloud config set compute/region $REGION
 
 App Engine est la solution la plus simple pour déployer le simulateur. Pas besoin de gérer les conteneurs ou l'infrastructure.
 
-### Étape 1 : Activer l'API App Engine
+### Étape 1 : Activer les APIs nécessaires
 
 ```bash
-# Activer l'API
+# Activer App Engine API
 gcloud services enable appengine.googleapis.com
+
+# Activer Cloud Build API (IMPORTANT pour le déploiement)
+gcloud services enable cloudbuild.googleapis.com
+
+# Activer Storage API
+gcloud services enable storage.googleapis.com
 
 # Créer l'application App Engine
 gcloud app create --region=$REGION
@@ -151,6 +157,27 @@ gcloud app create --region=$REGION
 
 **Régions disponibles :** `europe-west1`, `us-central1`, `asia-northeast1`, etc.
 ⚠️ **Attention :** La région ne peut pas être changée après création !
+
+### Étape 1b : Configurer les permissions Cloud Build
+
+App Engine utilise Cloud Build pour construire votre application. Le service account doit avoir les bonnes permissions :
+
+```bash
+# Récupérer le numéro du projet
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+
+# Donner les permissions au service account Cloud Build
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+# Donner les permissions au service account App Engine
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --role="roles/storage.objectViewer"
+```
+
+> ⚠️ **Note :** Ces commandes peuvent prendre 30-60 secondes pour que les permissions soient propagées.
 
 ### Étape 2 : Cloner le projet (si pas déjà fait)
 
@@ -599,6 +626,46 @@ gcloud app deploy app.yaml --quiet
 ```
 
 **Explication :** App Engine exige que le premier service déployé soit nommé `default`. Une fois ce service déployé, vous pourrez créer d'autres services avec des noms personnalisés.
+
+**Erreur : Service account does not have access to the bucket**
+```
+ERROR: an internal error has occurred
+Details: invalid bucket "staging.PROJECT_ID.appspot.com"; 
+service account PROJECT_ID@appspot.gserviceaccount.com does not have 
+access to the bucket
+```
+
+**Solution :**
+
+Cette erreur signifie que Cloud Build n'a pas les permissions nécessaires. Exécutez :
+
+```bash
+# 1. Activer l'API Cloud Build
+gcloud services enable cloudbuild.googleapis.com
+
+# 2. Récupérer le numéro du projet
+PROJECT_ID=$(gcloud config get-value project)
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+
+# 3. Donner les permissions au service account Cloud Build
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+# 4. Donner les permissions au service account App Engine
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --role="roles/storage.objectViewer"
+
+# 5. Attendre 30 secondes que les permissions se propagent
+sleep 30
+
+# 6. Relancer le déploiement
+cd deployment
+gcloud app deploy app.yaml --quiet
+```
+
+**Explication :** App Engine utilise Cloud Build pour construire votre application. Cloud Build a besoin d'accéder à un bucket de staging (créé automatiquement) pour stocker les fichiers de build.
 
 ### Problème : Authentification échoue (401)
 
