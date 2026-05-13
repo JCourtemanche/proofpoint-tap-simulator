@@ -39,9 +39,7 @@ echo -e "${GREEN}✓ Dockerfile trouvé${NC}\n"
 # 3. Construire l'image Docker
 echo -e "${YELLOW}[3/4] Construction de l'image Docker...${NC}"
 echo "Cela peut prendre 2-3 minutes..."
-gcloud builds submit \
-  --config cloudbuild.yaml \
-  --substitutions=_PROJECT_ID=$PROJECT_ID
+gcloud builds submit --config cloudbuild.yaml
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}ERREUR: La construction de l'image a échoué${NC}"
