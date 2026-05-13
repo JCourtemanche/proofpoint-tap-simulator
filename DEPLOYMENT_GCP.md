@@ -168,7 +168,7 @@ cd proofpoint-tap-simulator
 
 ```yaml
 runtime: python311
-service: default
+service: default  # IMPORTANT: Le premier service DOIT être "default"
 
 env_variables:
   AUTH_USERNAME: "votre-username"      # CHANGEZ ICI
@@ -180,6 +180,8 @@ automatic_scaling:
   max_instances: 2
   target_cpu_utilization: 0.65
 ```
+
+> ⚠️ **IMPORTANT** : App Engine exige que le **premier service déployé** soit nommé `default`. Vous ne pouvez pas utiliser un nom personnalisé comme `proofpoint-tap-simulator` pour le premier déploiement. Une fois le service `default` déployé, vous pourrez créer d'autres services avec des noms personnalisés.
 
 **Option B : Utiliser Secret Manager (Recommandé pour production)**
 
@@ -205,7 +207,7 @@ Puis modifier `deployment/app.yaml` :
 
 ```yaml
 runtime: python311
-service: default
+service: default  # IMPORTANT: Le premier service DOIT être "default"
 
 env_variables:
   DEBUG: "False"
@@ -576,6 +578,27 @@ gcloud projects get-iam-policy $PROJECT_ID
 Solution : Vous ne pouvez pas changer la région App Engine après création.
 Créez un nouveau projet si vous devez changer de région.
 ```
+
+**Erreur : The first service must be 'default'**
+```
+ERROR: INVALID_ARGUMENT: The first service (module) you upload to a new 
+application must be the 'default' service (module).
+```
+
+**Solution :**
+```bash
+# Modifier deployment/app.yaml
+# Changer la ligne:
+#   service: proofpoint-tap-simulator
+# En:
+#   service: default
+
+# Puis redéployer
+cd deployment
+gcloud app deploy app.yaml --quiet
+```
+
+**Explication :** App Engine exige que le premier service déployé soit nommé `default`. Une fois ce service déployé, vous pourrez créer d'autres services avec des noms personnalisés.
 
 ### Problème : Authentification échoue (401)
 

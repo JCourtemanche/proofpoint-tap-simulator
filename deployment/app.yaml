@@ -1,5 +1,5 @@
 runtime: python311
-service: proofpoint-tap-simulator
+service: default
 
 env_variables:
   AUTH_USERNAME: "test-principal"
