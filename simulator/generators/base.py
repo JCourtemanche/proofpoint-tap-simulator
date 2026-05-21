@@ -6,6 +6,7 @@ import random
 import hashlib
 from datetime import datetime, timedelta
 from faker import Faker
+from xsiam_shared import USERS, INTERNAL_IPS, MALICIOUS_URLS, DOMAIN
 
 fake = Faker()
 
@@ -15,21 +16,28 @@ def generate_guid():
     return str(uuid.uuid4())
 
 
-def generate_email(hashed=False, domain=None):
+def generate_email(hashed=False, domain=None, internal=False):
     """
-    Generate an email address
+    Generate an email address.
+
+    If internal=True, returns the email of a real Business Corp persona.
+    Otherwise generates a random external address (attacker / sender side).
 
     Args:
-        hashed: If True, hash the user part (Proofpoint behavior for privacy)
-        domain: Specific domain to use, or None for random
+        hashed:   If True, hash the user part (Proofpoint privacy behaviour)
+        domain:   Specific domain to use, or None for random (external only)
+        internal: If True, pick from the shared USERS list
 
     Returns:
         Email address string
     """
+    if internal:
+        return random.choice(USERS)["email"]
+
     if domain is None:
         domain = random.choice([
-            'example.com', 'company.com', 'business.org', 'enterprise.net',
-            'acme.com', 'widgets.io', 'services.co'
+            'gmail.com', 'outlook.com', 'yahoo.com', 'protonmail.com',
+            'hotmail.com', 'icloud.com', 'mail.ru'
         ])
 
     if hashed:
@@ -42,17 +50,19 @@ def generate_email(hashed=False, domain=None):
 
 def generate_ip(internal=False):
     """
-    Generate an IP address
+    Generate an IP address.
+
+    If internal=True, returns one of the Business Corp internal IPs (192.168.1.x).
+    Otherwise generates a random public IP.
 
     Args:
-        internal: If True, generate private IP (10.x.x.x, 192.168.x.x)
-                 If False, generate public IP
+        internal: If True, pick from shared INTERNAL_IPS
 
     Returns:
         IP address string
     """
     if internal:
-        return fake.ipv4_private()
+        return random.choice(INTERNAL_IPS)
     else:
         return fake.ipv4_public()
 
@@ -118,16 +128,8 @@ def generate_user_agent():
 
 
 def generate_malicious_url():
-    """Generate a fake malicious URL"""
-    domains = [
-        'malicious-site.tk', 'phishing-example.ru', 'bad-domain.xyz',
-        'evil-corp.ml', 'scam-page.ga', 'threat-actor.cf'
-    ]
-    paths = [
-        '/login.php', '/verify.html', '/update', '/secure/login',
-        '/account/verify', '/payment/confirm', '/download/file.exe'
-    ]
-    return f"http://{random.choice(domains)}{random.choice(paths)}"
+    """Return one of the shared malicious URLs (consistent across all simulators)."""
+    return random.choice(MALICIOUS_URLS)
 
 
 def generate_campaign_id():

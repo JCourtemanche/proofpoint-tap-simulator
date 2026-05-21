@@ -80,8 +80,8 @@ def generate_message(message_type='delivered', threat_types=None, threat_statuse
     message_time = generate_iso8601_date(start_time, end_time)
 
     sender_email = generate_email(hashed=True)
-    recipient_emails = [generate_email(hashed=True) for _ in range(random.randint(1, 3))]
-    cc_emails = [generate_email(hashed=True) for _ in range(random.randint(0, 2))] if random.random() < 0.3 else []
+    recipient_emails = [generate_email(internal=True) for _ in range(random.randint(1, 3))]
+    cc_emails = [generate_email(internal=True) for _ in range(random.randint(0, 2))] if random.random() < 0.3 else []
 
     subject = fake.sentence(nb_words=random.randint(4, 10)).rstrip('.')
 

@@ -4,29 +4,30 @@ Generates VAP (Very Attacked People) and Top Clickers data
 """
 import random
 from faker import Faker
-from .base import generate_email, generate_iso8601_date
+from xsiam_shared import USERS
+from .base import generate_iso8601_date
 from .campaigns import MALWARE_FAMILIES
 
 fake = Faker()
 
 
-def generate_vap_user():
+def generate_vap_user(persona=None):
     """
-    Generate a VAP (Very Attacked Person) user
+    Generate a VAP (Very Attacked Person) user.
 
-    Returns:
-        Dictionary with user identity and threat statistics
+    Uses a Business Corp persona so the same identities appear consistently
+    across ProofPoint, SentinelOne, and Cato dashboards in XSIAM.
     """
+    p = persona or random.choice(USERS)
     user = {
         'identity': {
-            'emails': [generate_email(hashed=False) for _ in range(random.randint(1, 2))]
+            'emails': [p["email"]]
         },
         'threatStatistics': {
             'families': []
         }
     }
 
-    # Generate 1-5 threat families with scores
     num_families = random.randint(1, 5)
     for _ in range(num_families):
         family = {
@@ -38,23 +39,20 @@ def generate_vap_user():
     return user
 
 
-def generate_top_clicker():
+def generate_top_clicker(persona=None):
     """
-    Generate a Top Clicker user
-
-    Returns:
-        Dictionary with user identity and click statistics
+    Generate a Top Clicker user using a Business Corp persona.
     """
+    p = persona or random.choice(USERS)
     user = {
         'identity': {
-            'emails': [generate_email(hashed=False) for _ in range(random.randint(1, 2))]
+            'emails': [p["email"]]
         },
         'clickStatistics': {
             'families': []
         }
     }
 
-    # Generate 1-5 threat families with click counts
     num_families = random.randint(1, 5)
     for _ in range(num_families):
         family = {

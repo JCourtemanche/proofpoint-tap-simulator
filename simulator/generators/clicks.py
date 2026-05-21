@@ -39,7 +39,7 @@ def generate_click(click_type='permitted', threat_statuses=None,
     threat_time = generate_iso8601_date(start_time, end_time)
 
     sender_email = generate_email(hashed=True)
-    recipient_email = generate_email(hashed=True)
+    recipient_email = generate_email(internal=True)
 
     click = {
         'GUID': guid,
@@ -65,7 +65,7 @@ def generate_click(click_type='permitted', threat_statuses=None,
         'recipient': recipient_email,
 
         # Click source
-        'clickIP': generate_ip(internal=False),
+        'clickIP': generate_ip(internal=True),
         'userAgent': generate_user_agent()
     }
 
